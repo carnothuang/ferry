@@ -1,0 +1,34 @@
+# Rust build output
+/app/target/
+/target/
+**/*.rs.bk
+
+# Debian build output
+/app/deb/*.deb
+/app/deb/ferry_*/
+/app/deb/fffactory_*/
+
+# Historical UI captures; current screenshots are app/shots/ui-*.png
+/app/shots/deepin.png
+/app/shots/final.png
+/app/shots/glow.png
+/app/shots/now.png
+
+# Local research / agent workspace artifacts
+/investigation.cany/
+/capture/
+/checks/
+/inbox/
+/payload-extract/
+/pinned/
+/reference/
+/craft.json
+/feed.json
+/transcript.json
+/usage.json
+/build-activity.log
+
+# Editor / OS
+.DS_Store
+*.swp
+*~

@@ -1,0 +1,21 @@
+[package]
+name = "ferry"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+eframe = { version = "0.27", default-features = false, features = ["glow", "wayland", "x11", "accesskit", "default_fonts"] }
+egui = "0.27"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif", "bmp", "tiff", "ico", "tga"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+raw-window-handle = "0.6"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11rb = "0.13"
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+codegen-units = 16

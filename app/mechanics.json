@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "values": [
+    { "name": "installer_version", "group": "installer", "value": "5.22.2.0", "source": "installer version resource (observed)" },
+    { "name": "video_encoder", "group": "video", "value": "libx264 crf23 preset medium", "estimated": true },
+    { "name": "audio_codec_default", "group": "video", "value": "aac 128k", "estimated": true },
+    { "name": "mp3_tiers_kbps", "group": "audio", "value": "320/192/128", "estimated": true },
+    { "name": "jpg_quality", "group": "image", "value": 90, "estimated": true },
+    { "name": "webp_quality", "group": "image", "value": 90, "estimated": true },
+    { "name": "gif_params", "group": "video", "value": "15fps 480px 16colors max30s threads1", "estimated": true },
+    { "name": "output_naming", "group": "output", "value": "name_ext.ext", "estimated": true },
+    { "name": "same_name", "group": "output", "value": "overwrite", "estimated": true }
+  ]
+}

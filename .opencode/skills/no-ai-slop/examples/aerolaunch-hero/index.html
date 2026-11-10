@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AeroLaunch hero - no-ai-slop, "Editorial Bold" direction</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#ffffff',
+            ink: '#14120f',     // near-black, warm
+            body: '#44423d',    // high-contrast secondary (not grey slop)
+            accent: '#e0402b',  // one deliberate vermilion - not blue/purple
+            line: '#e7e3db',    // warm hairline
+          },
+          fontFamily: {
+            display: ['Archivo', 'system-ui', 'sans-serif'],
+            serif: ['Newsreader', 'Georgia', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    .display { font-family: 'Archivo', system-ui, sans-serif; letter-spacing: -0.02em; line-height: 1.04; }
+    body { font-family: 'Newsreader', Georgia, serif; }
+    .label { font-family: 'Archivo', system-ui, sans-serif; }
+    .tnum { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body class="bg-paper text-body antialiased">
+
+  <!-- Top bar -->
+  <header class="mx-auto max-w-6xl px-6 py-6 flex items-center justify-between">
+    <a href="#" class="label text-lg font-extrabold tracking-tight text-ink">AeroLaunch</a>
+    <nav class="label hidden md:flex items-center gap-8 text-sm font-medium text-ink">
+      <a href="#" class="hover:text-accent transition-colors">Themes</a>
+      <a href="#" class="hover:text-accent transition-colors">Builder</a>
+      <a href="#" class="hover:text-accent transition-colors">Docs</a>
+      <a href="#" class="hover:text-accent transition-colors">Blog</a>
+    </nav>
+    <a href="#" class="label text-sm font-semibold border border-ink rounded px-4 py-2 text-ink hover:bg-ink hover:text-paper transition-colors">Browse themes</a>
+  </header>
+
+  <!-- Hero: asymmetric 12-col. Heading leads (no eyebrow/pill). -->
+  <main class="mx-auto max-w-6xl px-6">
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center pt-14 lg:pt-20 pb-16">
+
+      <div class="lg:col-span-7">
+        <h1 class="display text-[clamp(2.1rem,4.2vw,3rem)] font-black text-ink">
+          Premium Astro themes, ready to ship.
+        </h1>
+
+        <!-- Subtitle: serif, high-contrast, runs the full column width (not a narrow floating column). -->
+        <p class="mt-6 text-[1.15rem] md:text-[1.2rem] leading-[1.6] text-body">
+          Buy any theme from $39, or get all 20 plus every future release with the
+          <span class="text-ink font-medium">$300 lifetime bundle</span>. Each one ships as a
+          production-ready Astro 7 and Tailwind v4 project, fully yours to edit, brand, and deploy.
+        </p>
+
+        <div class="mt-9 flex flex-wrap items-center gap-6">
+          <a href="#" class="label inline-flex items-center gap-2 bg-ink text-paper text-[15px] font-semibold rounded px-6 py-3.5 hover:bg-accent transition-colors">
+            Browse all 20 themes
+            <!-- Heroicons (solid, mini) arrow-right - from a library, used once -->
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" class="h-4 w-4">
+              <path d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" />
+            </svg>
+          </a>
+          <a href="#" class="label inline-flex items-center text-[15px] font-semibold text-ink border-b-2 border-accent pb-0.5 hover:text-accent transition-colors">
+            See the lifetime bundle
+          </a>
+        </div>
+      </div>
+
+      <!-- Real imagery: a theme preview in a clean browser frame (hairline border, no soft-shadow glow). -->
+      <div class="lg:col-span-5">
+        <figure class="overflow-hidden rounded-md border border-line">
+          <div class="flex items-center gap-1.5 border-b border-line bg-paper px-3 py-2.5">
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+            <span class="h-2.5 w-2.5 rounded-full bg-line"></span>
+          </div>
+          <img src="https://picsum.photos/seed/aerolaunch-falcon/1200/900" alt="A site built with the Falcon theme" class="block w-full aspect-[4/3] object-cover" loading="eager" />
+        </figure>
+      </div>
+
+    </section>
+
+    <!-- Hairline divider as editorial structure -->
+    <hr class="border-0 border-t border-line" />
+
+    <!-- Featured themes: real preview imagery, not an icon-card grid -->
+    <section class="py-14">
+      <div class="flex items-baseline justify-between mb-8">
+        <h2 class="label text-sm font-semibold text-ink">Featured themes</h2>
+        <a href="#" class="label text-sm font-medium text-ink border-b-2 border-accent pb-0.5 hover:text-accent transition-colors">All 20 themes</a>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <article>
+          <figure class="overflow-hidden rounded-md border border-line">
+            <img src="https://picsum.photos/seed/falcon-theme/800/600" alt="Falcon theme preview" class="block w-full aspect-[4/3] object-cover" loading="lazy" />
+          </figure>
+          <div class="mt-3 flex items-baseline justify-between">
+            <h3 class="label font-semibold text-ink">Falcon</h3>
+            <span class="label tnum text-sm text-body">$59</span>
+          </div>
+          <p class="text-[15px] text-body">Agency &amp; portfolio. Light + dark.</p>
+        </article>
+
+        <article>
+          <figure class="overflow-hidden rounded-md border border-line">
+            <img src="https://picsum.photos/seed/august-theme/800/600" alt="August theme preview" class="block w-full aspect-[4/3] object-cover" loading="lazy" />
+          </figure>
+          <div class="mt-3 flex items-baseline justify-between">
+            <h3 class="label font-semibold text-ink">August</h3>
+            <span class="label tnum text-sm text-body">$49</span>
+          </div>
+          <p class="text-[15px] text-body">Personal &amp; portfolio canvas.</p>
+        </article>
+
+        <article>
+          <figure class="overflow-hidden rounded-md border border-line">
+            <img src="https://picsum.photos/seed/boost-theme/800/600" alt="Boost theme preview" class="block w-full aspect-[4/3] object-cover" loading="lazy" />
+          </figure>
+          <div class="mt-3 flex items-baseline justify-between">
+            <h3 class="label font-semibold text-ink">Boost</h3>
+            <span class="label tnum text-sm text-body">$49</span>
+          </div>
+          <p class="text-[15px] text-body">Bold growth-marketing agency.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+</body>
+</html>
