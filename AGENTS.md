@@ -26,6 +26,14 @@ cd app
 ./target/release/ferry --page video --size 880x560 --screenshot /tmp/narrow.png
 ```
 
+`--demo-jobs` 会给队列页注入覆盖全部行状态的示例任务（进行中 / 等待 /
+完成 / 失败 / 跳过），并给合并、混流页注入示例文件；若存在
+`/tmp/ferry_demo_source.mp4`，第一个任务会执行真实转换以验证进度条：
+
+```bash
+./target/release/ferry --page queue --demo-jobs --screenshot /tmp/queue_demo.png
+```
+
 无显示环境用 `xvfb-run -a -s "-screen 0 1200x800x24"` 包一层。
 
 ## UI 改动

@@ -17,6 +17,7 @@ use eframe::egui::{
     Response, RichText, Rounding, Sense, Stroke, TextStyle,
 };
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use std::sync::Mutex;
 
 // ---------------------------------------------------------------------------
@@ -1029,14 +1030,18 @@ fn convert_main(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
                     app.pick_slot = PickSlot::None;
                     tools_mod::open_file_picker(format!("选择{}文件", kind.title()), kind.filter());
                 }
-                if button(ui, "从剪贴板粘贴", BtnKind::Ghost, true).clicked() {
+                let paste_resp = button(ui, "从剪贴板粘贴", BtnKind::Ghost, true);
+                let paste_clicked = paste_resp.clicked();
+                paste_resp.on_hover_text("读取剪贴板中的文件路径并添加");
+                if paste_clicked {
                     paste_paths(app, kind);
                 }
             });
             ui.add_space(4.0);
         } else {
             for (i, f) in files.iter().enumerate() {
-                let removed = file_row(ui, i, file_name(f), parent_display(f), &tildify(f));
+                let (removed, _) =
+                    file_row(ui, i, file_name(f), parent_display(f), &tildify(f), None);
                 if removed {
                     kind.files_mut(app).remove(i);
                 }
@@ -1054,7 +1059,10 @@ fn convert_main(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
                     app.pick_slot = PickSlot::None;
                     tools_mod::open_file_picker(format!("选择{}文件", kind.title()), kind.filter());
                 }
-                if button(ui, "从剪贴板粘贴", BtnKind::Ghost, true).clicked() {
+                let paste_resp = button(ui, "从剪贴板粘贴", BtnKind::Ghost, true);
+                let paste_clicked = paste_resp.clicked();
+                paste_resp.on_hover_text("读取剪贴板中的文件路径并添加");
+                if paste_clicked {
                     paste_paths(app, kind);
                 }
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
@@ -1067,9 +1075,19 @@ fn convert_main(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
     });
 }
 
-fn file_row(ui: &mut egui::Ui, index: usize, name: String, dir: String, full_path: &str) -> bool {
+fn file_row(
+    ui: &mut egui::Ui,
+    index: usize,
+    name: String,
+    dir: String,
+    full_path: &str,
+    reorder: Option<(bool, bool)>,
+) -> (bool, Option<i32>) {
+    // Returns (removed, move) where move is -1 for "up" and 1 for "down".
     let w = ui.available_width();
+    let buttons_w = if reorder.is_some() { 168.0 } else { 76.0 };
     let mut removed = false;
+    let mut moved: Option<i32> = None;
     ui.horizontal(|ui| {
         ui.set_width(w);
         ui.label(
@@ -1077,7 +1095,7 @@ fn file_row(ui: &mut egui::Ui, index: usize, name: String, dir: String, full_pat
                 .font(mono(10.5))
                 .color(FAINT),
         );
-        let text_w = (w - 76.0).max(90.0);
+        let text_w = (w - buttons_w).max(90.0);
         ui.allocate_ui_with_layout(vec2(text_w, 36.0), Layout::top_down(Align::Min), |ui| {
             ui.add(
                 egui::Label::new(RichText::new(&name).font(sans(13.5)).color(INK)).truncate(true),
@@ -1088,13 +1106,21 @@ fn file_row(ui: &mut egui::Ui, index: usize, name: String, dir: String, full_pat
             );
         });
         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            if let Some((can_up, can_down)) = reorder {
+                if button(ui, "下移", BtnKind::Ghost, can_down).clicked() {
+                    moved = Some(1);
+                }
+                if button(ui, "上移", BtnKind::Ghost, can_up).clicked() {
+                    moved = Some(-1);
+                }
+            }
             if button(ui, "移除", BtnKind::Ghost, true).clicked() {
                 removed = true;
             }
         });
     });
     ui.add_space(4.0);
-    removed
+    (removed, moved)
 }
 
 fn convert_aside(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
@@ -1123,19 +1149,22 @@ fn convert_aside(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
                     ui.label(RichText::new("宽 px").font(sans(11.0)).color(MUTED));
-                    ui.add_sized(
+                    let w_resp = ui.add_sized(
                         [62.0, 28.0],
                         egui::DragValue::new(&mut app.settings.image_width)
                             .clamp_range(0..=crate::imaging::MAX_OUTPUT_SIDE)
                             .speed(1.0),
                     );
                     ui.label(RichText::new("高 px").font(sans(11.0)).color(MUTED));
-                    ui.add_sized(
+                    let h_resp = ui.add_sized(
                         [62.0, 28.0],
                         egui::DragValue::new(&mut app.settings.image_height)
                             .clamp_range(0..=crate::imaging::MAX_OUTPUT_SIDE)
                             .speed(1.0),
                     );
+                    if w_resp.changed() || h_resp.changed() {
+                        app.settings.save();
+                    }
                 });
                 ui.add_space(4.0);
                 ui.horizontal(|ui| {
@@ -1143,6 +1172,7 @@ fn convert_aside(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
                     if button(ui, "原始尺寸", BtnKind::Ghost, has_size).clicked() {
                         app.settings.image_width = 0;
                         app.settings.image_height = 0;
+                        app.settings.save();
                     }
                     caption(ui, "0 为原始；单边等比缩放");
                 });
@@ -1159,6 +1189,7 @@ fn convert_aside(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
                     let label = format!("{name} {kbps}");
                     if chip(ui, &label, app.settings.audio_quality == i, true).clicked() {
                         app.settings.audio_quality = i;
+                        app.settings.save();
                     }
                 }
             });
@@ -1187,7 +1218,10 @@ fn convert_aside(ui: &mut egui::Ui, app: &mut App, kind: TargetKind) {
             format!("转换 {count} 个文件为 {}", target.to_uppercase())
         };
         let width = ui.available_width();
-        if button_w(ui, &label, BtnKind::Primary, count > 0, Some(width)).clicked() {
+        let convert_resp = button_w(ui, &label, BtnKind::Primary, count > 0, Some(width));
+        if count == 0 {
+            convert_resp.on_hover_text("在左侧添加待转换的文件后即可开始");
+        } else if convert_resp.clicked() {
             start_convert(app, kind, files.clone(), target.clone());
         }
         ui.add_space(6.0);
@@ -1356,7 +1390,20 @@ fn join_card(ui: &mut egui::Ui, app: &mut App) {
             ui.add_space(10.0);
         } else {
             for (i, f) in files.iter().enumerate() {
-                let removed = file_row(ui, i, file_name(f), parent_display(f), &tildify(f));
+                let can_up = i > 0;
+                let can_down = i + 1 < files.len();
+                let (removed, mv) = file_row(
+                    ui,
+                    i,
+                    file_name(f),
+                    parent_display(f),
+                    &tildify(f),
+                    Some((can_up, can_down)),
+                );
+                if let Some(d) = mv {
+                    let j = (i as isize + d as isize).max(0) as usize;
+                    app.join_files.swap(i, j);
+                }
                 if removed {
                     app.join_files.remove(i);
                 }
@@ -1508,7 +1555,8 @@ fn mux_card(ui: &mut egui::Ui, app: &mut App) {
         } else {
             ui.add_space(12.0);
             let width = ui.available_width();
-            button_w(ui, "混流为一个视频", BtnKind::Primary, false, Some(width));
+            let resp = button_w(ui, "混流为一个视频", BtnKind::Primary, false, Some(width));
+            resp.on_hover_text("选择视频和音频后即可开始");
             ui.add_space(6.0);
             caption(ui, "选择视频和音频后即可开始。");
         }
@@ -1568,7 +1616,33 @@ fn resize_label((w, h): (u32, u32)) -> String {
 }
 
 fn queue_page(ui: &mut egui::Ui, app: &mut App) {
-    let total = app.jobs.len();
+    page_header(
+        ui,
+        "任务列表",
+        "转换在后台逐个进行，不会改动原文件。失败的任务可以重试。",
+    );
+
+    if app.jobs.is_empty() {
+        let empty_w = ui.available_width().min(620.0);
+        ui.allocate_ui_with_layout(vec2(empty_w, 0.0), Layout::top_down(Align::Min), |ui| {
+            card(ui, |ui| {
+                ui.label(RichText::new("队列是空的").font(display(19.0)).color(INK));
+                ui.add_space(4.0);
+                ui.label(
+                    RichText::new("在视频、音频或图片页添加文件后，任务会在这里排队。")
+                        .font(sans(12.0))
+                        .color(MUTED),
+                );
+                ui.add_space(14.0);
+                if button(ui, "去添加文件", BtnKind::Primary, true).clicked() {
+                    app.page = Page::Video;
+                }
+                ui.add_space(2.0);
+            });
+        });
+        return;
+    }
+
     let pending = app
         .jobs
         .iter()
@@ -1594,77 +1668,39 @@ fn queue_page(ui: &mut egui::Ui, app: &mut App) {
         .iter()
         .filter(|j| j.state == JobState::Skipped)
         .count();
-
-    page_header(
-        ui,
-        "任务列表",
-        "转换在后台逐个进行，不会改动原文件。失败的任务可以重试。",
-    );
-
-    if total > 0 {
-        ui.horizontal(|ui| {
-            ui.label(
-                RichText::new(format!("共 {total} 个任务"))
-                    .font(display(16.0))
-                    .color(INK),
-            );
-            ui.add_space(8.0);
-            count_dot(ui, pending, "等待", MUTED);
-            count_dot(ui, running, "进行中", ACCENT);
-            count_dot(ui, done, "完成", SUCCESS);
-            count_dot(ui, failed, "失败", ERROR);
-            if skipped > 0 {
-                count_dot(ui, skipped, "跳过", WARN);
-            }
-        });
-        ui.add_space(12.0);
-    }
+    let finished = done + failed + skipped;
 
     ui.horizontal(|ui| {
-        if button(
-            ui,
-            "清除已结束",
-            BtnKind::Secondary,
-            done + failed + skipped > 0,
-        )
-        .clicked()
-        {
-            app.drop_finished();
+        ui.label(
+            RichText::new(format!("共 {} 个任务", app.jobs.len()))
+                .font(display(16.0))
+                .color(INK),
+        );
+        ui.add_space(8.0);
+        count_dot(ui, pending, "等待", MUTED);
+        count_dot(ui, running, "进行中", ACCENT);
+        count_dot(ui, done, "完成", SUCCESS);
+        count_dot(ui, failed, "失败", ERROR);
+        if skipped > 0 {
+            count_dot(ui, skipped, "跳过", WARN);
         }
-        if button(ui, "重试失败", BtnKind::Secondary, failed + skipped > 0).clicked() {
-            for j in app.jobs.iter_mut() {
-                if matches!(j.state, JobState::Failed | JobState::Skipped) {
-                    j.state = JobState::Pending;
-                    j.note.clear();
-                }
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let retry_resp = button(ui, "重试失败", BtnKind::Ghost, failed + skipped > 0);
+            if failed + skipped == 0 {
+                retry_resp.on_hover_text("没有失败或跳过的任务");
             }
-        }
+            let clear_resp = button(ui, "清除已结束", BtnKind::Secondary, finished > 0);
+            if finished == 0 {
+                clear_resp.on_hover_text("还没有已完成或失败的任务");
+            }
+        });
     });
-
     ui.add_space(14.0);
 
-    if app.jobs.is_empty() {
-        let empty_w = ui.available_width().min(620.0);
-        ui.allocate_ui_with_layout(vec2(empty_w, 0.0), Layout::top_down(Align::Min), |ui| {
-            card(ui, |ui| {
-                ui.label(RichText::new("队列是空的").font(display(19.0)).color(INK));
-                ui.add_space(4.0);
-                ui.label(
-                    RichText::new("在视频、音频或图片页添加文件后，任务会在这里排队。")
-                        .font(sans(12.0))
-                        .color(MUTED),
-                );
-                ui.add_space(14.0);
-                if button(ui, "去添加文件", BtnKind::Primary, true).clicked() {
-                    app.page = Page::Video;
-                }
-                ui.add_space(2.0);
-            });
-        });
-        return;
-    }
-
     card(ui, |ui| {
+        let mut open_dir: Option<PathBuf> = None;
+        let mut retry: Option<u64> = None;
+        let mut remove: Option<u64> = None;
         for (idx, j) in app.jobs.iter_mut().enumerate() {
             if idx > 0 {
                 hairline(ui);
@@ -1707,7 +1743,13 @@ fn queue_page(ui: &mut egui::Ui, app: &mut App) {
                             );
                         }
                     }
-                    if !j.note.is_empty() {
+                    if j.state == JobState::Running {
+                        progress_bar(ui, j.progress);
+                    }
+                    // Done rows show the output file size below instead of
+                    // the engine's generic "完成" note, which repeats the tag.
+                    let note_hidden = j.state == JobState::Done && j.note == "完成";
+                    if !j.note.is_empty() && !note_hidden {
                         let color = if j.state == JobState::Failed {
                             ERROR
                         } else {
@@ -1715,11 +1757,136 @@ fn queue_page(ui: &mut egui::Ui, app: &mut App) {
                         };
                         ui.label(RichText::new(&j.note).font(sans(10.5)).color(color));
                     }
+                    if j.state == JobState::Done {
+                        match std::fs::metadata(&j.target_path) {
+                            Ok(m) => {
+                                ui.label(
+                                    RichText::new(format!("输出文件 {}", fmt_bytes(m.len())))
+                                        .font(sans(10.5))
+                                        .color(MUTED),
+                                );
+                            }
+                            Err(_) => {
+                                ui.label(
+                                    RichText::new("输出文件不存在（可能被移动或删除）")
+                                        .font(sans(10.5))
+                                        .color(WARN),
+                                );
+                            }
+                        }
+                    }
+                });
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| match j.state {
+                    JobState::Done => {
+                        if button(ui, "打开文件夹", BtnKind::Ghost, true).clicked() {
+                            open_dir = Some(j.target_path.clone());
+                        }
+                    }
+                    JobState::Failed | JobState::Skipped => {
+                        if button(ui, "移除", BtnKind::Ghost, true).clicked() {
+                            remove = Some(j.id);
+                        }
+                        if button(ui, "重试", BtnKind::Ghost, true).clicked() {
+                            retry = Some(j.id);
+                        }
+                    }
+                    JobState::Pending => {
+                        if button(ui, "移除", BtnKind::Ghost, true).clicked() {
+                            remove = Some(j.id);
+                        }
+                    }
+                    JobState::Running => {}
                 });
             });
             ui.add_space(9.0);
         }
+        if let Some(p) = open_dir {
+            open_containing_dir(&p);
+            app.status = format!("已请求打开 {}", parent_display(&p));
+        }
+        if let Some(id) = retry {
+            if let Some(j) = app.jobs.iter_mut().find(|j| j.id == id) {
+                j.state = JobState::Pending;
+                j.note.clear();
+                j.progress = None;
+            }
+        }
+        if let Some(id) = remove {
+            app.jobs.retain(|j| j.id != id);
+        }
     });
+}
+
+/// A 5 px progress bar with the percentage to its right. A known fraction
+/// fills in the accent colour; an unknown one animates a sweeping segment.
+fn progress_bar(ui: &mut egui::Ui, progress: Option<f32>) {
+    ui.horizontal(|ui| {
+        let known = progress.is_some();
+        let bar_w = (ui.available_width() - if known { 48.0 } else { 0.0 }).max(60.0);
+        let (rect, _) = ui.allocate_exact_size(vec2(bar_w, 5.0), Sense::hover());
+        ui.painter()
+            .rect_filled(rect, Rounding::same(2.5), HOVER_BG);
+        match progress {
+            Some(f) => {
+                let f = f.clamp(0.0, 1.0);
+                let w = (rect.width() * f).max(2.0);
+                ui.painter().rect_filled(
+                    Rect::from_min_size(rect.min, vec2(w, rect.height())),
+                    Rounding::same(2.5),
+                    ACCENT,
+                );
+                ui.label(
+                    RichText::new(format!("{}%", (f * 100.0) as u32))
+                        .font(mono(10.5))
+                        .color(ACCENT_DARK),
+                );
+            }
+            None => {
+                // indeterminate: a short accent segment sweeping left to right
+                let t = ui.input(|i| i.time as f32);
+                let seg = rect.width() * 0.22;
+                let travel = rect.width() + seg;
+                let head = ((t * 200.0) % travel) - seg;
+                let x0 = head.max(rect.left());
+                let x1 = (head + seg).min(rect.right());
+                if x1 > x0 {
+                    ui.painter().rect_filled(
+                        Rect::from_min_max(pos2(x0, rect.top()), pos2(x1, rect.bottom())),
+                        Rounding::same(2.5),
+                        ACCENT,
+                    );
+                }
+                ui.label(RichText::new("…").font(mono(10.5)).color(MUTED));
+            }
+        }
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_millis(66));
+    });
+}
+
+fn open_containing_dir(p: &Path) {
+    if let Some(dir) = p.parent() {
+        let _ = std::process::Command::new("xdg-open")
+            .arg(dir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn();
+    }
+}
+
+fn fmt_bytes(n: u64) -> String {
+    const UNITS: [&str; 4] = ["B", "KB", "MB", "GB"];
+    let mut v = n as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < 3 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 {
+        format!("{n} B")
+    } else {
+        format!("{v:.1} {}", UNITS[i])
+    }
 }
 
 fn count_dot(ui: &mut egui::Ui, count: usize, label: &str, color: Color32) {
@@ -1743,7 +1910,7 @@ fn count_dot(ui: &mut egui::Ui, count: usize, label: &str, color: Color32) {
 
 fn settings_page(ui: &mut egui::Ui, app: &mut App) {
     let cfg = tildify(&crate::dirs_config_dir().join("ferry.json"));
-    let subtitle = format!("输出位置、同名文件处理和默认音质。设置保存在 {cfg}。");
+    let subtitle = format!("输出位置、同名文件处理和默认音质。更改会即时保存到 {cfg}。");
 
     ui.add_space(2.0);
     ui.horizontal_top(|ui| {
@@ -1751,12 +1918,6 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
             ui.label(RichText::new("设置").font(display(30.0)).color(INK));
             ui.add_space(4.0);
             ui.label(RichText::new(subtitle).font(sans(13.0)).color(MUTED));
-        });
-        ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-            if button(ui, "保存设置", BtnKind::Primary, true).clicked() {
-                app.settings.save();
-                app.status = "设置已保存".into();
-            }
         });
     });
     ui.add_space(16.0);
@@ -1807,6 +1968,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
                         && button(ui, "恢复默认", BtnKind::Ghost, true).clicked()
                     {
                         app.settings.output_dir = None;
+                        app.settings.save();
                     }
                 });
             });
@@ -1829,6 +1991,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
                     .clicked()
                     {
                         app.settings.collision = Collision::Overwrite;
+                        app.settings.save();
                     }
                     if chip(
                         ui,
@@ -1839,6 +2002,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
                     .clicked()
                     {
                         app.settings.collision = Collision::Rename;
+                        app.settings.save();
                     }
                     if chip(
                         ui,
@@ -1849,6 +2013,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
                     .clicked()
                     {
                         app.settings.collision = Collision::Skip;
+                        app.settings.save();
                     }
                 });
             });
@@ -1877,6 +2042,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
                         let label = format!("{name} {kbps}k");
                         if chip(ui, &label, app.settings.audio_quality == i, true).clicked() {
                             app.settings.audio_quality = i;
+                            app.settings.save();
                         }
                     }
                 });
@@ -1932,6 +2098,7 @@ fn settings_page(ui: &mut egui::Ui, app: &mut App) {
             if let Some(p) = paths.first() {
                 if p.is_dir() {
                     app.settings.output_dir = Some(p.clone());
+                    app.settings.save();
                 }
             }
         }

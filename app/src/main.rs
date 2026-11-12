@@ -166,6 +166,9 @@ pub struct Job {
     pub resize: Option<(u32, u32)>,
     pub state: JobState,
     pub note: String,
+    /// Conversion progress 0..1 for running video/audio jobs; None while
+    /// unknown (no duration) or not running.
+    pub progress: Option<f32>,
 }
 
 pub struct App {
@@ -262,6 +265,7 @@ impl App {
                 resize,
                 state: JobState::Pending,
                 note: String::new(),
+                progress: None,
             });
             self.next_id += 1;
         }
@@ -276,6 +280,73 @@ impl App {
             )
         });
     }
+}
+
+/// Sample jobs injected with `--demo-jobs` so screenshot checks can exercise
+/// every queue row state (running bar, failure note, skipped tag). The paths
+/// are placeholders and are never touched — unless `/tmp/ferry_demo_source.mp4`
+/// exists, in which case the first job runs a real conversion to verify the
+/// live progress bar end to end.
+fn demo_jobs() -> Vec<Job> {
+    // If a real test clip exists, the first job runs an actual conversion so
+    // the live progress bar can be verified end to end; otherwise the first
+    // row is a placeholder that never runs.
+    let real_source = PathBuf::from("/tmp/ferry_demo_source.mp4");
+    let (running_src, running_out) = if real_source.exists() {
+        (real_source, PathBuf::from("/tmp/ferry_demo_out.mp4"))
+    } else {
+        (
+            PathBuf::from("/home/can/素材/海岸线日出_4K.mp4"),
+            PathBuf::from("/home/can/转换输出/海岸线日出_4K_mp4.mp4"),
+        )
+    };
+    let mk =
+        |id: u64, name: &str, target: &str, state: JobState, note: &str, progress: Option<f32>| {
+            Job {
+                id,
+                kind: JobKind::Convert,
+                source: PathBuf::from(format!("/home/can/素材/{name}")),
+                target: target.to_string(),
+                target_path: PathBuf::from(format!("/home/can/转换输出/{name}_{target}.{target}")),
+                resize: None,
+                state,
+                note: note.to_string(),
+                progress,
+            }
+        };
+    let mut jobs = vec![Job {
+        id: 1,
+        kind: JobKind::Convert,
+        source: running_src,
+        target: "mp4".into(),
+        target_path: running_out,
+        resize: None,
+        state: JobState::Pending,
+        note: String::new(),
+        progress: None,
+    }];
+    jobs.extend([
+        mk(2, "第一季度汇报", "mp4", JobState::Pending, "", None),
+        mk(3, "歌单合集", "mp3", JobState::Pending, "", None),
+        mk(4, "产品定妆照", "webp", JobState::Done, "完成", None),
+        mk(
+            5,
+            "发布会片段",
+            "gif",
+            JobState::Failed,
+            "输出文件正被占用: Permission denied",
+            None,
+        ),
+        mk(
+            6,
+            "旧版宣传册",
+            "jpg",
+            JobState::Skipped,
+            "同名文件已存在, 按设置跳过",
+            None,
+        ),
+    ]);
+    jobs
 }
 
 /// Headless smoke test mode: convert one file with the production engine and
@@ -323,6 +394,7 @@ fn main() -> eframe::Result<()> {
     let mut shot_path: Option<PathBuf> = None;
     let mut start_page: Option<Page> = None;
     let mut start_size: Option<(f32, f32)> = None;
+    let mut demo_jobs_flag = false;
     let mut args = argv.into_iter().skip(1);
     while let Some(a) = args.next() {
         if a == "--screenshot" {
@@ -350,6 +422,8 @@ fn main() -> eframe::Result<()> {
                     _ => start_page,
                 };
             }
+        } else if a == "--demo-jobs" {
+            demo_jobs_flag = true;
         }
     }
 
@@ -374,6 +448,16 @@ fn main() -> eframe::Result<()> {
             let mut app = App::default();
             if let Some(page) = start_page {
                 app.page = page;
+            }
+            if demo_jobs_flag {
+                app.jobs = demo_jobs();
+                app.join_files = vec![
+                    PathBuf::from("/home/can/素材/开场镜头.mp4"),
+                    PathBuf::from("/home/can/素材/正片_成片版.mp4"),
+                    PathBuf::from("/home/can/素材/片尾字幕.mp4"),
+                ];
+                app.mux_video = Some(PathBuf::from("/home/can/素材/无声宣传片.mp4"));
+                app.mux_audio = Some(PathBuf::from("/home/can/素材/背景音乐_完整版.aac"));
             }
             app.shot_path = shot_path;
             if app.shot_path.is_some() {
